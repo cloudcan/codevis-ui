@@ -1,20 +1,22 @@
 <template>
-  <Layout></Layout>
+  <div id="app">
+    <Layout/>
+  </div>
 </template>
 
-<script>
+<script lang="ts">
+import { Component, Vue } from 'vue-property-decorator';
+import Layout from './components/Layout.vue';
 
-import Layout from './components/Layout.vue'
-export default {
-  name: 'app',
+@Component({
   components: {
-    Layout
-  }
-}
+    Layout,
+  },
+})
+export default class App extends Vue {}
 </script>
 
 <style>
-
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;

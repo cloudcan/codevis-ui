@@ -5,26 +5,58 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "electron:build": "vue-cli-service electron:build",
+    "electron:debug": "./node_modules/.bin/electron --inspect dist_electron",
+    "electron:serve": "vue-cli-service electron:serve",
+    "postinstall": "electron-builder install-app-deps",
+    "postuninstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "@types/koa-bodyparser": "^4.3.0",
+    "@types/koa-convert": "^1.2.3",
+    "@types/koa-json": "^2.0.18",
+    "@types/koa-logger": "^3.1.1",
+    "@types/koa-router": "^7.0.42",
+    "@types/koa2-cors": "^2.0.1",
+    "@types/vis": "^4.21.19",
     "axios": "^0.18.0",
     "element-ui": "^2.4.7",
+    "koa": "^2.11.0",
+    "koa-bodyparser": "^4.2.1",
+    "koa-convert": "^1.2.0",
+    "koa-json": "^2.0.2",
+    "koa-logger": "^3.2.1",
+    "koa-router": "^7.4.0",
+    "koa2-cors": "^2.0.6",
+    "neo4j-driver": "^1.7.6",
     "uuid": "^3.3.2",
     "vis": "^4.21.0",
     "vue": "^2.5.17",
     "vue-async-computed": "^3.4.1",
+    "vue-class-component": "^7.0.2",
     "vue-context-menu": "^2.0.6",
+    "vue-property-decorator": "^8.3.0",
     "vue-splitpane": "^1.0.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.7.4",
+    "@babel/preset-env": "^7.7.4",
+    "@babel/register": "^7.7.4",
     "@vue/cli-plugin-babel": "^4.0.5",
     "@vue/cli-plugin-eslint": "^4.0.5",
+    "@vue/cli-plugin-typescript": "^4.1.1",
     "@vue/cli-service": "^4.0.5",
+    "@vue/eslint-config-typescript": "^4.0.0",
+    "babel": "^6.23.0",
     "babel-eslint": "^10.0.3",
     "babel-plugin-component": "^1.1.1",
+    "electron": "^6.0.0",
     "eslint": "^5.16.0",
     "eslint-plugin-vue": "^5.0.0",
+    "ts-node": "^8.5.4",
+    "typescript": "~3.5.3",
+    "vue-cli-plugin-electron-builder": "^1.4.2",
     "vue-template-compiler": "^2.5.17"
   },
   "eslintConfig": {
@@ -34,14 +66,15 @@
     },
     "rules": {
       "no-console": 0,
-      "no-unused-vars":0
+      "no-unused-vars": 0
     },
     "extends": [
       "plugin:vue/essential",
-      "eslint:recommended"
+      "eslint:recommended",
+      "@vue/typescript"
     ],
     "parserOptions": {
-      "parser": "babel-eslint"
+      "parser": "@typescript-eslint/parser"
     }
   },
   "postcss": {
@@ -52,5 +85,6 @@
   "browserslist": [
     "> 1%",
     "last 2 versions"
-  ]
+  ],
+  "main": "background.js"
 }

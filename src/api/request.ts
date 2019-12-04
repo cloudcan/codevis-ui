@@ -2,7 +2,7 @@ import axios from 'axios'
 import {Message} from 'element-ui'
 // create an axios instance
 const service = axios.create({
-  baseURL: 'http://localhost:9999/api/', // api 的 base_url
+  baseURL: 'http://localhost:3000/api/', // api 的 base_url
   timeout: 20000 // request timeout
 })
 
@@ -12,6 +12,7 @@ service.interceptors.request.use(
     return config
   },
   error => {
+    console.log(error)
     Promise.reject(error)
   }
 )
@@ -37,6 +38,7 @@ service.interceptors.response.use(
       type: 'error',
       duration: 5 * 1000
     })
+    console.log(error)
     return Promise.reject(error)
   }
 )

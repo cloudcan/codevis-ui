@@ -1,86 +1,48 @@
 <template>
   <div style="display:block;height:100%" class="main-graph">
     <div class="toolbar">
-      <el-button @click="gAddEdge"  size="small">新增边</el-button>
+      <!-- <el-button @click="gAddEdge"  size="small">新增边</el-button>
       <el-button @click="gDeleteNode" :disabled="!canDeleteNode" size="small">删除节点</el-button>
       <el-button @click="gDeleteEdge" :disabled="!canDeleteEdge" size="small">剪边</el-button>
       <el-button @click="gFocusTree" size="small">定位到树</el-button>
       <el-button @click="()=>appendMode=!appendMode" size="small">{{['刷新模式','添加模式'][appendMode?0:1]}}</el-button>
       <el-button @click="()=>containSibling=!containSibling" size="small">{{['隐藏兄弟','显示兄弟'][containSibling?0:1]}}</el-button>
-      <el-button  @click="()=>locked=!locked" :icon="['el-icon-star-on','el-icon-star-off'][locked?0:1]" size="small">{{['解锁','锁定'][locked?0:1]}}</el-button>
+      <el-button  @click="()=>locked=!locked" :icon="['el-icon-star-on','el-icon-star-off'][locked?0:1]" size="small">{{['解锁','锁定'][locked?0:1]}}</el-button>-->
     </div>
-    <el-dialog width="50%"   title="编辑关系" :visible.sync="dialogEEVisible" @close="handleEEDialogClose"> 
-      <el-form ref="edgeForm" :model="eeData" label-width="80px" :rules="edgeFormRules">
-          <el-form-item label="关系类型" prop="edgeType">
-                <el-radio-group v-model="eeData.edgeType" @change="handleEdgeTypeChange">
-                      <el-radio label="Inherit">继承</el-radio>
-                      <el-radio label="Composition">组合</el-radio>
-                      <el-radio label="Derivative">衍生</el-radio>
-                      <el-radio label="Association" :disabled="!canAssociation">联系</el-radio>
-                </el-radio-group>
-          </el-form-item>
-          <el-form-item label="关联节点" prop="connection" v-if="eeData.edgeType=='Association'" >
-            <el-select v-model="eeData.connection"  filterable placeholder="请选择关联节点">
-              <el-option
-                v-for="item in connections"
-                :key="item.id"
-                :label="item.name"
-                :value="item.id">
-              </el-option>
-            </el-select>
-        </el-form-item>
-      </el-form>
-       <span slot="footer" class="dialog-footer">
-          <el-button @click="dialogEEVisible = false">取 消</el-button>
-          <el-button type="primary" @click="confirmEEDialog">确 定</el-button>
-        </span>
-    </el-dialog>
-    <Network 
-            :nodes=nodes 
-            :edges=edges 
-            :options="gOptions"
-            @click="gClick"
-            @selectEdge="gSelectEdge"
-            @doubleClick="gDoubleClick"
-            @oncontext="gOncontext"
-            @afterDrawing="gAfterDrawing"
-            @stabilized="gStabilized"
-            @dragEnd="gDragEnd"
-            @hover="gHover"
-            @dragging="gDragging"
-            @hold="gHold"
-            ref="gNetwork"
-            @selectNode="gSelectNode">
-    </Network>
+    <Network
+      :nodes="nodes"
+      :edges="edges"
+      :options="gOptions"
+      @click="gClick"
+      @doubleClick="gDoubleClick"
+      @oncontext="gOncontext"
+      ref="gNetwork"
+      @selectNode="gSelectNode"
+    ></Network>
   </div>
 </template>
 <script>
 import Network from "./Network.vue";
 import { DataSet } from "vis";
-import { dropNode } from "@/api/tree";
-import {
-  getFamily,
-  getRelativeNode,
-  addEdge,
-  deleteEdge,
-  searchNode,
-  getConnection,
-  canDeleteEdge,
-  canDropNode
-} from "@/api/graph";
-import { adaptPath, addData, adaptFamily } from "@/utils/adapter";
-import { parseEdgesFromEvent } from "@/utils/parseEvent";
+import { getChildrenPath } from "@/api";
+import { addNode, getChildrenPathParams, addPath } from "@/utils/adapter";
+import { NodeLabel } from "../model/types";
 export default {
   name: "graph",
   components: {
     Network
   },
   props: {
-    toGraphData: {
-      type: [Array, Object],
-      default: () => []
-    },
-    events: ["on-node-properties", "on-edge-properties", "on-focus-tree","on-drop-node"]
+    toGraphNode: {
+      type: Object,
+      default: () => {}
+    }
+    // events: ["on-node-properties", "on-edge-properties", "on-focus-tree","on-drop-node"]
+  },
+  watch: {
+    toGraphNode: function(newVal, oldVal) {
+      this.gNeoNode(newVal);
+    }
   },
   data() {
     return {
@@ -95,67 +57,17 @@ export default {
       containSibling: false, //是否包含兄弟姐妹
       locked: false, //是否锁定
       eeData: {
-        edgeData:null,//连接的点数据
+        edgeData: null, //连接的点数据
         //编辑关系对话框数据
         edgeType: "Inherit", //选择的边类型
         connection: null //关联节点id
       },
       connections: [], //所有关联
       selectedNode: null, //当前选中的节点
-      selectedEdge:null,//当前选中的边
-      edgeFormRules:{
-        connection: [
-            { required: true,message: '请选择关联节点', trigger: 'change' },
-        ],
-        edgeType: [
-            { required: true,message: '请选择关系类型', trigger: 'change' },
-        ],
-      }
+      selectedEdge: null //当前选中的边
     };
   },
-  computed:{
-    /**
-     * 是否可建立关联
-     */
-    canAssociation(){
-      let t=this.eeData.edgeData;
-      if(t){
-        let from=this.nodes.get(t.from);
-        let to=this.nodes.get(t.to);
-        return from&&from.data&&from.data.nodeType!='Connection'&&to&&to.data&&to.data.nodeType!='Connection';
-      }else{
-        return false;
-      }
-    }
-  },
-  asyncComputed: {
-    /**
-     * 是否可剪边
-     */
-    canDeleteEdge() {
-      if (this.selectedEdge) {
-        let edgeId=this.selectedEdge.data.id;
-        return canDeleteEdge({
-          id: edgeId
-        }).then(data => !!data);
-      } else {
-        return false;
-      }
-    },
-    /**
-     * 是否可删除节点
-     */
-    canDeleteNode() {
-      if (this.selectedNode&&!this.selectedNode.data.immutable) {
-        let nodeId=this.selectedNode.data.id;
-        return canDropNode({
-          id: nodeId
-        }).then(data => !!data);
-      } else {
-        return false;
-      }
-    }
-  },
+  computed: {},
   methods: {
     /**
      * 初始化网络图
@@ -195,67 +107,6 @@ export default {
       //this.getAll();
     },
     /**
-     * 确认编辑关系
-     */
-    confirmEEDialog() {
-      //验证编辑边表单
-      this.$refs.edgeForm.validate(valid=>{
-        if(valid){
-            let ed = this.eeData.edgeData;
-            let _this = this;
-            let params = {
-              edgeType: _this.eeData.edgeType,
-              connection: _this.eeData.connection,
-              from: ed.from,
-              to: ed.to
-            };
-            addEdge(params).then(data => {
-              _this.dialogEEVisible = false;
-              let _data = adaptPath(data);
-              _this.nodes = addData(_this.nodes, _data.nodes);
-              _this.edges = addData(_this.edges, _data.edges);
-            });
-        }else{
-          return false;
-        }
-      });
-    },
-    /**
-     * 处理编辑关系对话框关闭事件
-     */
-    handleEEDialogClose() {
-      this.$refs.gNetwork.disableEditMode();
-      this.$refs.edgeForm.resetFields();
-      this.eeData.edgeType = "Inherit";
-    },
-    /**
-     * 处理边类型改变事件
-     */
-    handleEdgeTypeChange() {
-      if (this.eeData.edgeType == "Association") {
-        getConnection().then(data => {
-          this.connections = data;
-        });
-      }
-    },
-    querySearch(queryString, cb) {
-      var nodes = this.nodes.map(e => e);
-      var results = queryString
-        ? nodes.filter(
-            n => n.label.toLowerCase().indexOf(queryString.toLowerCase()) === 0
-          )
-        : nodes;
-      // 调用 callback 返回建议列表的数据
-      cb(results);
-    },
-    searchNode() {
-      let _this = this;
-      let node = _this.nodes.map(item => item).find(n => {
-        return n.label == _this.search.nodeName;
-      });
-      focusNode(nodeId);
-    },
-    /**
      * 关注节点
      */
     focusNode(nodeId) {
@@ -269,37 +120,19 @@ export default {
       net.selectNodes([nodeId]);
     },
     //利用传来的数据作图
-    dataGraph() {},
+    dataGraph(data) {},
     /**
      * 获取指定节点相关的节点
      */
-    gNeoNode(nodeId) {
+    gNeoNode(node) {
       //锁定模式下无法创建数据
       if (this.locked) {
         return;
       }
-      let _this = this;
-      let params = {
-        nodeId: nodeId,
-        members: "Parents,Children,Me" + (this.containSibling ? ",Sibling" : "")
-      };
-      getFamily(params)
-        .then(data => {
-          var _data = adaptFamily(data);
-          if (!_this.appendMode) {
-            //清空所有数据后再添加
-            _this.nodes.clear();
-            _this.edges.clear();
-            _this.nodes.add(_data.nodes);
-            _this.edges.add(_data.edges);
-          } else {
-            _this.nodes = addData(_this.nodes, _data.nodes);
-            _this.edges = addData(_this.edges, _data.edges);
-          }
-          //关注节点
-          _this.focusNode(nodeId);
-        })
-        .catch();
+      //清空所有数据后再添加
+      this.nodes.clear();
+      this.edges.clear();
+      addNode(this.nodes, node);
     },
     /**
      * 处理单击事件
@@ -308,40 +141,30 @@ export default {
       if (e.nodes.length == 0 && e.edges.length == 0) {
         //点击空白区域
         this.selectedNode = null;
-        this.selectedEdge=null;
+        this.selectedEdge = null;
       } else if (e.nodes.length != 0) {
         //单击节点
-        // this.gOncontext(e);
+        console.log("select node:", e.nodes);
       }
     },
     /**
      * 处理双击事件
      */
     gDoubleClick(e) {
-      // console.log(e);
       if (e.nodes.length != 0) {
         let _this = this;
-        let params = {
-          nodeId: e.nodes[0]
-        };
-        getRelativeNode(params).then(data => {
-          var _data = adaptPath(data);
-          _this.nodes = addData(_this.nodes, _data.nodes);
-          _this.edges = addData(_this.edges, _data.edges);
-        });
+        let cNode = _this.nodes.get(e.nodes[0]).data;
+        if (
+          cNode.label == NodeLabel.Container ||
+          cNode.label == NodeLabel.Prog ||
+          cNode.label == NodeLabel.File
+        ) {
+          let { pid, label, r } = getChildrenPathParams(cNode);
+          getChildrenPath(pid, label, r).then(data => {
+            addPath(_this.nodes, _this.edges, ...data);
+          });
+        }
       }
-    },
-    gDragEnd(e) {
-      console.log(e);
-    },
-    gHover(e) {
-      console.log(e);
-    },
-    gHold(e) {
-      console.log(e);
-    },
-    gDragging(e) {
-      console.log(e);
     },
     /**
      * 处理右键事件
@@ -399,7 +222,6 @@ export default {
         e.event.preventDefault();
       }
     },
-    gStabilized() {},
     /**
      * 选中边事件
      */
@@ -433,35 +255,10 @@ export default {
       this.$refs.gNetwork.addEdgeMode();
     },
     /**
-     * 剪边
-     */
-    gDeleteEdge() {
-      let _this = this;
-      let edgeId = this.selectedEdge.data.id;
-      deleteEdge({ id: edgeId }).then(data => {
-        this.edges.remove(edgeId);
-      });
-    },
-    /**
-     * 删除节点
-     */
-    gDeleteNode() {
-      let _this = this;
-      let nodeId = this.selectedNode.data.id;
-      dropNode({ nodeId: nodeId }).then(data => {
-        _this.nodes.remove(nodeId);
-        _this.$emit("on-drop-node",_this.selectedNode.data);
-        _this.selectedNode=null;
-      });
-    },
-    /**
      * 改变鼠标
      */
     changeCursor(cursor) {
       this.$refs.gNetwork.$refs.visualization.children[0].style.cursor = cursor;
-    },
-    gDeleteSelected() {
-      this.$refs.gNetwork.deleteSelected();
     },
     gAfterDrawing(ctx) {},
     /**
