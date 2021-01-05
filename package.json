@@ -20,7 +20,7 @@
     "@types/koa-router": "^7.0.42",
     "@types/koa2-cors": "^2.0.1",
     "@types/vis": "^4.21.19",
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "element-ui": "^2.4.7",
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.2.1",
